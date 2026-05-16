@@ -13,11 +13,16 @@ intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 @bot.command()
-async def scrape(ctx):
+async def archive(ctx):
     # Check permission
     if not ctx.author.guild_permissions.administrator:
-        await ctx.send("You must be an administrator to use this command.")
+        await ctx.send(
+            "The Nest cannot begin preservation without administrator clearance.\n"
+            "Archive request denied — admin access is required."
+        )
         return
+
+    await ctx.send("Quiet please... the librarian is collecting memories.")
     
     channel_name = ctx.channel.name
 
@@ -44,6 +49,9 @@ async def scrape(ctx):
                 file_path = f"{channel_name}/{message.id}_{attachment.filename}"
                 await attachment.save(file_path)
 
-    await ctx.send(f"Messages, attachments, and embeds have been saved to the {channel_name} folder")
+    await ctx.send(
+        "Preservation complete — this corner of the cosmos has been safely remembered!\n"
+        "This chapter has been marked, stored, and settled into the archives."
+    )
 
 bot.run(token=token)
