@@ -3,6 +3,8 @@ from discord.ext import commands
 import os
 import json
 import traceback
+import shutil
+import asyncio
 from dotenv import load_dotenv
 from datetime import datetime
 
@@ -14,24 +16,23 @@ intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-ver = "1.0e"
+ver = "1.1a"
 
 def log_archive_error(error_file, message, error, error_area):
-    error_text = traceback.format_exc()
-    
     log_text = (
         "\n"
         "================ ARCHIVE ERROR ================\n"
         f"area: {error_area}\n"
         f"message_id: {message.id}\n"
+        f"message_url: {message.jump_url}\n"
         f"message_date: {message.created_at}\n"
         f"message_author: {message.author}\n"
         f"error_type: {type(error).__name__}\n"
         f"error_message: {error}\n"
         f"\n"
         f"Full traceback:\n"
-        f"{error_text}\n"
-        f"================================================\n\n"
+        f"{traceback.format_exc()}\n"
+        f"================================================\n\n\n\n\n"
     )
 
     error_file.write(log_text)
@@ -39,11 +40,11 @@ def log_archive_error(error_file, message, error, error_area):
     
     print(log_text)
 
-def safe_folder_name(name):
+def safe_folder_name(name, max_length=120):
     unsafe_chars = '<>:"/\\|?*'
 
     if not name:
-        name = "output"
+        name = "file"
 
     for char in unsafe_chars:
         name = name.replace(char, "-")
@@ -51,9 +52,25 @@ def safe_folder_name(name):
     name = name.strip()
 
     if not name:
-        name = "output"
+        name = "file"
 
-    return name
+    filename, extension = os.path.splitext(name)
+    max_filename_length = max_length - len(extension)
+    if len(filename) > max_filename_length:
+        filename = filename[:max_filename_length]
+
+    return filename + extension
+
+async def save_attachment_retry(attachment, file_path, retries=3, delay=1):
+    for attempt in range(1, retries + 1):
+        try:
+            await attachment.save(file_path)
+            return True, None
+        except Exception as error:
+            if attempt == retries:
+                return False, error
+            await asyncio.sleep(delay)
+    return False, None
 
 @bot.command()
 async def archive(ctx):
@@ -74,7 +91,9 @@ async def archive(ctx):
 
     current_date = datetime.now().strftime("%Y-%m-%d")
 
-    archive_folder = os.path.join("..", "archives", current_date, channel_name)
+    archive_folder_date = os.path.join("..", "archives", current_date)
+
+    archive_folder = os.path.join(archive_folder_date, channel_name)
 
     # Create output directory if it doesn't exist
     os.makedirs(archive_folder, exist_ok=True)
@@ -118,8 +137,10 @@ async def archive(ctx):
                     error_area="writing basic message content"
                 )
                 await ctx.send(
-                    f"Archive warning - failed to write general message content from ID: {message.id}.\n"
-                    "Error logged. Librarian continues with archiving!"
+                    "Archive warning - failed to write general message content!\n"
+                    f"Message ID: {message.id}.\n"
+                    f"Message URL: {message.jump_url}.\n"
+                    "Error logged. Librarian continues with archiving!\n"
                 )
                 continue
 
@@ -140,16 +161,25 @@ async def archive(ctx):
                         error_area="writing embeds"
                     )
                     await ctx.send(
-                        f"Archive warning - failed to write embeds from ID: {message.id}"
-                        "Error logged. Librarian continues with archiving!"
+                        "Archive warning - failed to write embeds!\n"
+                        f"Message ID: {message.id}\n"
+                        f"Message URL: {message.jump_url}\n"
+                        "Error logged. Librarian continues with archiving!\n"
                     )
                     continue
 
             # Save attachments
             for attachment in message.attachments:
                 try:
-                    file_path = os.path.join(archive_folder, f"{message.id}_{attachment.filename}")
-                    await attachment.save(file_path)
+                    # await attachment.save(os.path.join(archive_folder, safe_folder_name(f"{message.id}_{attachment.filename}")))
+                    success, error = await save_attachment_retry(
+                        attachment=attachment,
+                        file_path=os.path.join(archive_folder, safe_folder_name(f"{message.id}_{attachment.filename}")),
+                        retries=3,
+                        delay=1
+                    )
+                    if not success:
+                        raise error
 
                 except Exception as error:
                     log_archive_error(
@@ -159,9 +189,11 @@ async def archive(ctx):
                         error_area=f"saving attachment: {attachment.filename}"
                     )
                     await ctx.send(
-                        f"Archive warning - failed to save attachment from ID: {message.id}.\n"
+                        "Archive warning - failed to save attachment\n"
+                        f"Message ID: {message.id}.\n"
+                        f"Message URL: {message.jump_url}.\n"
                         f"Attachment: {attachment.filename}.\n"
-                        "Error logged. Librarian continues with archiving!"
+                        "Error logged. Librarian continues with archiving!\n"
                     )
                     continue
 
@@ -178,16 +210,47 @@ async def archive(ctx):
                 )
 
     await msg_a1.edit(
-        content = (
+        content=(
             "Quiet please... The librarian is collecting memories.\n"
-            "Done!"
+            "Sealing up the archive..."
         )
     )
 
-    await ctx.send(
-        "Preservation complete — this archive of the nest has been safely remembered!\n"
-        "This chapter has been marked, stored, and settled into the archives."
+    FullArchiveState = True
+    try:
+        shutil.make_archive(
+            base_name=archive_folder,
+            format="zip",
+            root_dir=archive_folder_date,
+            base_dir=channel_name
+        )
+    except Exception as error:
+        FullArchiveState = False
+        print("Failed to fully create the archive")
+        print(traceback.format_exc())
+        await ctx.send(
+            "Archive warning - the files were saved, but could not be fully archived.\n"
+            f"Error: {type(error).__name__}\n"
+        )
+
+    await msg_a1.edit(
+        content = (
+            "Quiet please... The librarian is collecting memories.\n"
+            "Done!\n"
+        )
     )
+
+    if FullArchiveState:
+        await ctx.send(
+            "Preservation complete — this section of the nest has been archived!\n"
+            "The chapter has been marked, stored, and sealed."
+        )
+    else:
+        await ctx.send(
+            "Preservation mostly complete - data has been saved, but wasent able to fully archive.\n"
+            "Check the console output for details."
+        )
+
     return
 
 @bot.command()
@@ -200,7 +263,7 @@ async def version(ctx):
 @bot.command()
 async def contributors(ctx):
     await ctx.send(
-        f"Contributors: ebannox, derek"
+        "Contributors: ebannox, derek"
     )
     return
 
