@@ -1,24 +1,16 @@
-# Simple Discord Channel Archiver
-## (((this readme is outdated atm, will update soon eventually)))
+# Cosmic Nest Archivist
+*A custom-made Discord archiving system for Cosmic Nest.*
 
-This is a simple script that will archive all messages from a Discord channel into a folder. It will create a folder for each channel and save all their messages in that folder. It will also save all attachments and embeds.
+## Current Version
+Current development version: `v1.2a`
+This version adds Cosmic Nest themed online/offline HTML transcript generation, archive metadata, and development run folders for testing.
 
-Warning: Two channels with the same name will overwrite each other.
+## Origin and Attribution
+Cosmic Nest Archivist began as a fork of `sofiadparamo/discord-channel-archiver`, a simple Discord channel archiving bot.
+Since then, this project has been heavily expanded and redesigned for the Cosmic Nest Discord server. It now includes custom archive folder handling, safer filename handling, attachment retry logic, zip output, error logging, archive metadata, and Cosmic Nest themed HTML transcript generation.
+The current project is maintained as a custom archival system for Cosmic Nest.
 
-This bot is not meant to be run public. It will save the files in the host's file system. It is meant to be run locally or on a private cloud.
-
-## Installation
-
-1. Install Python 3.8 or higher
-2. Install the requirements with `pip install -r requirements.txt`
-3. [Create a Discord bot and generate a token](https://discordpy.readthedocs.io/en/stable/discord.html)
-4. Rename `example.env` to `.env` and fill in the token
-5. Run the bot with `python bot.py`
-
-## Usage
-
-1. Invite the bot to your server
-2. Give it the permission to read messages and history from the channels you want to archive. Or simply give it administrator permissions
-3. Run the command `!scrape` in the channel you want to archive
-4. Wait until the bot is done, you'll see a message in the channel when it's done. It may take from some minutes to several hours depending on the ammount of messages in the channel, the size of the attachments and the speed of your internet connection.
-5. The files will be saved in the folder with the same name as the channel. These are located in the root folder of the bot.
+## License Status
+This project is currently under active development and does not yet have a finalized public license.
+Cosmic Nest specific branding, transcript styling, custom bot responses, and server-specific workflows are not intended for reuse without permission.
+A clearer license and branding policy will be added before any stable public release.
